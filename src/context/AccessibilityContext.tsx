@@ -24,7 +24,11 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
 
   useEffect(() => {
     document.documentElement.style.fontSize = `${fontSize}px`
-    document.body.classList.toggle('high-contrast', highContrast)
+    if (highContrast) {
+      document.documentElement.classList.add('high-contrast')
+    } else {
+      document.documentElement.classList.remove('high-contrast')
+    }
   }, [fontSize, highContrast])
 
   return (

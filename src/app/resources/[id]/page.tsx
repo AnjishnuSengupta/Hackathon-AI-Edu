@@ -1,15 +1,12 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useAuth } from '@/context/AuthContext'
+import { useAuth } from '../../../context/AuthContext'
 import { doc, getDoc, updateDoc } from 'firebase/firestore'
-import { db } from '@/firebase'
-import TextToSpeech from '@/components/TextToSpeech'
-import SignLanguageTranslator from '@/components/SignLanguageTranslator'
-
-interface PageParams {
-  id: string;
-}
+import { db } from '../../../firebase'
+import TextToSpeech from '../../../components/TextToSpeech'
+import SignLanguageTranslator from '../../../components/SignLanguageTranslator'
+import { useAccessibility } from '../../../context/AccessibilityContext'
 
 interface Resource {
   id: string;
@@ -19,11 +16,19 @@ interface Resource {
   url?: string;
 }
 
-export default function ResourcePage({ params }: { params: PageParams }) {
+interface PageProps {
+  params: {
+    id: string;
+  };
+}
+
+export default function ResourcePage({ params }: PageProps) {
   const { user } = useAuth()
-  const [resource, setResource] = useState<Resource | null>(null)
+  const { highContrast } = useAccessibility()
+  const [resource, setResource] = useState<Resource | undefined>(undefined)
   const [loading, setLoading] = useState(true)
   const [completed, setCompleted] = useState(false)
+  const [activeTab, setActiveTab] = useState('content') // 'content', 'speech', or 'sign'
 
   useEffect(() => {
     const fetchResource = async () => {
@@ -55,10 +60,8 @@ export default function ResourcePage({ params }: { params: PageParams }) {
           completedResources: [...(userData?.completedResources || []), params.id]
         })
         setCompleted(true)
-        alert('Resource marked as completed')
       } catch (error) {
         console.error('Error marking resource as completed:', error)
-        alert('Failed to mark resource as completed')
       }
     }
   }
@@ -67,30 +70,74 @@ export default function ResourcePage({ params }: { params: PageParams }) {
   if (!resource) return <div className="container mx-auto px-4 py-8">Resource not found</div>
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-4">{resource.title}</h1>
-      <p className="mb-4 text-gray-700">{resource.content}</p>
-      <div className="flex flex-col space-y-4 mt-4">
-        <TextToSpeech text={resource.content} />
-        <SignLanguageTranslator />
+    <div className={`min-h-screen py-8 ${highContrast ? 'high-contrast' : ''}`}>
+      <div className="max-w-4xl mx-auto px-4">
+        <h1 className="text-4xl font-bold mb-6">{resource.title}</h1>
+        
+        {/* Tab Navigation */}
+        <div className="flex mb-6 space-x-4 border-b">
+          <button
+            onClick={() => setActiveTab('content')}
+            className={`py-2 px-4 ${activeTab === 'content' ? 'border-b-2 border-blue-600' : ''}`}
+          >
+            Content
+          </button>
+          <button
+            onClick={() => setActiveTab('speech')}
+            className={`py-2 px-4 ${activeTab === 'speech' ? 'border-b-2 border-blue-600' : ''}`}
+          >
+            Text to Speech
+          </button>
+          <button
+            onClick={() => setActiveTab('sign')}
+            className={`py-2 px-4 ${activeTab === 'sign' ? 'border-b-2 border-blue-600' : ''}`}
+          >
+            Sign Language
+          </button>
+        </div>
+
+        {/* Tab Content */}
+        <div className="card">
+          {activeTab === 'content' && (
+            <div className="prose max-w-none">
+              <p className="text-lg">{resource.content}</p>
+              {resource.type === 'video' && (
+                <video controls className="w-full mt-4 rounded">
+                  <source src={resource.url} type="video/mp4" />
+                  Your browser does not support the video tag.
+                </video>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'speech' && (
+            <div className="p-4 bg-gray-50 rounded">
+              <TextToSpeech text={resource.content} />
+            </div>
+          )}
+
+          {activeTab === 'sign' && (
+            <div className="p-4 bg-gray-50 rounded">
+              <SignLanguageTranslator />
+            </div>
+          )}
+        </div>
+
+        {/* Progress Tracking */}
+        {user && !completed && (
+          <button 
+            onClick={markAsCompleted}
+            className="mt-6 btn btn-primary"
+          >
+            Mark as Completed
+          </button>
+        )}
+        {completed && (
+          <p className="mt-6 text-green-600 font-bold">
+            ✓ You have completed this resource!
+          </p>
+        )}
       </div>
-      {resource.type === 'video' && (
-        <video controls className="w-full mt-4 rounded-lg shadow-lg">
-          <source src={resource.url} type="video/mp4" />
-          Your browser does not support the video tag.
-        </video>
-      )}
-      {user && !completed && (
-        <button 
-          onClick={markAsCompleted} 
-          className="mt-4 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
-        >
-          Mark as Completed
-        </button>
-      )}
-      {completed && (
-        <p className="mt-4 text-green-500 font-bold">You have completed this resource!</p>
-      )}
     </div>
   )
 }
