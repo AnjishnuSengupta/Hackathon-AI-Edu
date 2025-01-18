@@ -8,47 +8,45 @@ const Header = () => {
   const { user, logout } = useAuth()
 
   return (
-    <header className="border-b border-gray-200 bg-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16 space-x-8">
-          <Link 
-            href="/" 
-            className="text-2xl font-bold text-gray-900"
-          >
-            AI-Edu Platform
+    <header className="bg-white shadow-md">
+      <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+        <Link href="/" className="text-2xl font-bold text-blue-600 header-text">
+          AI-Edu Platform
+        </Link>
+        <nav className="flex items-center space-x-4">
+          <Link href="/resources" className="nav-link header-text">
+            Resources
           </Link>
-
-          <div className="flex items-center space-x-4">
-            <nav className="hidden md:flex space-x-4">
-              <Link href="/resources" className="nav-link">
-                Resources
-              </Link>
-              {user ? (
-                <>
-                  {user.email?.includes('admin') && (
-                    <Link href="/admin" className="nav-link">
-                      Admin
-                    </Link>
-                  )}
-                  <Link href="/profile" className="nav-link">
-                    Profile
-                  </Link>
-                  <button onClick={logout} className="nav-link">
-                    Logout
-                  </button>
-                </>
-              ) : (
-                <Link href="/login" className="nav-link">
-                  Login
+          {user ? (
+            <>
+              {user.email?.includes('admin') && (
+                <Link href="/admin" className="nav-link header-text">
+                  Admin
                 </Link>
               )}
-            </nav>
-            <AccessibilitySettings />
-          </div>
-        </div>
+              <Link href="/profile" className="nav-link header-text">
+                Profile
+              </Link>
+              <button onClick={logout} className="nav-link header-text">
+                Logout
+              </button>
+            </>
+          ) : (
+            <>
+              <Link href="/login" className="nav-link header-text">
+                Login
+              </Link>
+              <Link href="/register" className="nav-link header-text">
+                Register
+              </Link>
+            </>
+          )}
+          <AccessibilitySettings />
+        </nav>
       </div>
     </header>
   )
 }
 
 export default Header
+
