@@ -42,80 +42,94 @@ const SignLanguageConverter = ({ onDetectedText }: { onDetectedText: (text: stri
     }
   }, [translating])
 
-  interface HandLandmark {
-    landmarks: Array<[number, number, number]>;
+  type Landmark = [number, number, number];
+
+  interface HandPrediction {
+    landmarks: Landmark[];
   }
 
   interface HandposeModel {
-    estimateHands: (video: HTMLVideoElement) => Promise<HandLandmark[]>;
+    estimateHands: (video: HTMLVideoElement) => Promise<HandPrediction[]>;
   }
 
   const detectHands = async (model: HandposeModel): Promise<void> => {
-      if (!canvasRef.current || !videoRef.current) return;
+    if (!canvasRef.current || !videoRef.current) return;
 
-      const predictions = await model.estimateHands(videoRef.current);
-      const ctx = canvasRef.current.getContext('2d') as CanvasRenderingContext2D;
-      ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+    const predictions = await model.estimateHands(videoRef.current);
+    const ctx = canvasRef.current.getContext('2d');
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
 
-      if (predictions.length > 0) {
-        predictions.forEach((prediction: HandLandmark) => {
-          const landmarks = prediction.landmarks;
+    if (predictions.length > 0) {
+      predictions.forEach((prediction: HandPrediction) => {
+        const landmarks = prediction.landmarks;
 
-          // Draw hand skeleton
-          ctx.strokeStyle = highContrast ? 'yellow' : 'blue';
-          ctx.lineWidth = 2;
+        // Draw hand skeleton
+        ctx.strokeStyle = highContrast ? 'yellow' : 'blue';
+        ctx.lineWidth = 2;
 
-          for (let i = 0; i < landmarks.length; i++) {
-            const [x, y] = landmarks[i];
-            ctx.beginPath();
-            ctx.arc(x, y, 5, 0, 2 * Math.PI);
-            ctx.fill();
+        for (let i = 0; i < landmarks.length; i++) {
+          const [x, y, _]: Landmark = landmarks[i];
+          ctx.beginPath();
+          ctx.arc(x, y, 5, 0, 2 * Math.PI);
+          ctx.fill();
 
-            if (i > 0) {
-              const [px, py] = landmarks[i - 1];
-              ctx.moveTo(px, py);
-              ctx.lineTo(x, y);
-              ctx.stroke();
-            }
+          if (i > 0) {
+            const [px, py, _]: Landmark = landmarks[i - 1];
+            ctx.moveTo(px, py);
+            ctx.lineTo(x, y);
+            ctx.stroke();
           }
+        }
 
-          // Detect letter based on hand pose
-          const letter = detectLetter(landmarks);
-          setDetectedLetter(letter);
-          onDetectedText(letter);
-        });
-      }
+        // Detect letter based on hand pose
+        const letter = detectLetter(landmarks);
+        setDetectedLetter(letter);
+        onDetectedText(letter);
+      });
+    }
 
-      requestAnimationFrame(() => detectHands(model));
-    };
+    requestAnimationFrame(() => detectHands(model));
+  };
 
-  interface Landmark {
-    0: number;  // x
-    1: number;  // y
-    2: number;  // z
+  interface HandPosition {
+    landmarks: Landmark[];
   }
 
   const detectLetter = (landmarks: Landmark[]): string => {
-    const thumbTip = landmarks[4]
-    const indexTip = landmarks[8]
+      // This is a simplified example. You would need a more sophisticated algorithm
+      // to accurately detect letters based on hand landmarks.
+      const thumbTip: Landmark = landmarks[4];
+      const indexTip: Landmark = landmarks[8];
 
-    const distance = Math.sqrt(
-      Math.pow(thumbTip[0] - indexTip[0], 2) + Math.pow(thumbTip[1] - indexTip[1], 2)
-    )
+      const distance: number = Math.sqrt(
+        Math.pow(thumbTip[0] - indexTip[0], 2) + Math.pow(thumbTip[1] - indexTip[1], 2)
+      );
 
-    if (distance < 20) {
-      return 'A'
-    } else if (distance < 40) {
-      return 'B'
-    } else {
-      return 'C'
+      if (distance < 20) {
+        return 'A';
+      } else if (distance < 40) {
+        return 'B';
+      } else {
+        return 'C';
+      }
+    }
+
+  const handleStartTranslating = async () => {
+    try {
+      await navigator.mediaDevices.getUserMedia({ video: true })
+      setTranslating(true)
+      setCameraError(false)
+    } catch (error) {
+      console.error('Error accessing camera:', error)
+      setCameraError(true)
     }
   }
 
   return (
     <div className="space-y-4">
       <button 
-        onClick={() => setTranslating(!translating)}
+        onClick={handleStartTranslating}
         className={`px-4 py-2 rounded ${highContrast ? 'bg-yellow-400 text-black' : 'bg-blue-500 text-white'} hover:opacity-80`}
       >
         {translating ? 'Stop Translation' : 'Start Sign Language Translation'}

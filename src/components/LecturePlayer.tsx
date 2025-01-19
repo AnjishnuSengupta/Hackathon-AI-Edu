@@ -6,14 +6,9 @@ import TextToSpeech from './TextToSpeech'
 import SignLanguageConverter from './SignLanguageConverter'
 
 interface Lecture {
-  source?: string;
   videoId?: string;
   url?: string;
-  type?: string;
   title: string;
-  content?: string;
-  imageUrl?: string;
-  description?: string;
   transcript?: string;
 }
 
@@ -23,17 +18,14 @@ const LecturePlayer = ({ lecture }: { lecture: Lecture }) => {
   const [messages, setMessages] = useState<Message[]>([])
   const [inputMessage, setInputMessage] = useState('')
   const [isSignLanguageMode, setIsSignLanguageMode] = useState(false)
+  const [hasCameraPermission, setHasCameraPermission] = useState(false)
   const videoRef = useRef(null)
 
   useEffect(() => {
-    if (lecture.source === 'youtube') {
+    if (lecture.videoId) {
       setVideoUrl(`https://www.youtube.com/embed/${lecture.videoId}`)
-    } else if (lecture.source === 'khan_academy') {
-      setVideoUrl(`https://www.khanacademy.org/embed_video?v=${lecture.videoId}`)
-    } else if (lecture.source === 'vimeo') {
-      setVideoUrl(`https://player.vimeo.com/video/${lecture.videoId}`)
     } else {
-      setVideoUrl(lecture.url ?? '')
+      setVideoUrl(lecture.url || '')
     }
   }, [lecture])
 
@@ -43,11 +35,13 @@ const LecturePlayer = ({ lecture }: { lecture: Lecture }) => {
   }
 
   const handleSendMessage = (message: string): void => {
-    setMessages([...messages, { text: message, isUser: true }]);
+    setMessages([...messages, { text: message, isUser: true }])
+    // Here you would typically send the message to a backend for processing
+    // For now, we'll just echo the message back
     setTimeout(() => {
-      setMessages((prev: Message[]) => [...prev, { text: `Echo: ${message}`, isUser: false }]);
-    }, 1000);
-  };
+      setMessages((prev: Message[]) => [...prev, { text: `Echo: ${message}`, isUser: false }])
+    }, 1000)
+  }
 
   const handleSignLanguageInput = (detectedText: string): void => {
     handleSendMessage(detectedText)
@@ -57,50 +51,31 @@ const LecturePlayer = ({ lecture }: { lecture: Lecture }) => {
     setShowChatbox(!showChatbox)
   }
 
-  const toggleInputMode = () => {
+  const toggleInputMode = async () => {
+    if (!isSignLanguageMode && !hasCameraPermission) {
+      try {
+        await navigator.mediaDevices.getUserMedia({ video: true })
+        setHasCameraPermission(true)
+      } catch (error) {
+        console.error('Error accessing camera:', error)
+        alert('Camera permission is required for sign language mode. Please enable camera access and try again.')
+        return
+      }
+    }
     setIsSignLanguageMode(!isSignLanguageMode)
-  }
-
-  if (lecture.type === 'text') {
-    return (
-      <div className="bg-white p-6 rounded-lg shadow-md">
-        <h2 className="text-2xl font-bold mb-4">{lecture.title}</h2>
-        <div className="prose max-w-none mb-4">
-          {lecture.content}
-        </div>
-        <TextToSpeech text={lecture.content ?? 'No content available.'} />
-      </div>
-    )
-  }
-
-  if (lecture.type === 'image') {
-    return (
-      <div className="bg-white p-6 rounded-lg shadow-md">
-        <h2 className="text-2xl font-bold mb-4">{lecture.title}</h2>
-        <div className="relative w-full h-0" style={{ paddingBottom: '56.25%' }}>
-          <Image
-            src={lecture.imageUrl || "/placeholder.svg"}
-            alt={lecture.title}
-            layout="fill"
-            objectFit="contain"
-          />
-        </div>
-        <TextToSpeech text={lecture.description || lecture.title} />
-      </div>
-    )
   }
 
   return (
     <div className="bg-white p-6 rounded-lg shadow-md">
       <h2 className="text-2xl font-bold mb-4">{lecture.title}</h2>
-      <div className="aspect-w-16 aspect-h-9 mb-4">
+      <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
         <iframe
           src={videoUrl}
           title={lecture.title}
           frameBorder="0"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowFullScreen
-          className="w-full h-full rounded-lg shadow-md"
+          className="absolute top-0 left-0 w-full h-full rounded-lg shadow-md"
           ref={videoRef}
         ></iframe>
       </div>
