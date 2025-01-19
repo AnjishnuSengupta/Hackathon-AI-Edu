@@ -1,13 +1,11 @@
 'use client'
 
 import Link from 'next/link'
-import { useAuth } from '../context/AuthContext'
 import AccessibilitySettings from './AccessibilitySettings'
 import NotificationIcon from './NotificationIcon'
 import { motion } from 'framer-motion'
 
 const Header = () => {
-  const { user, logout } = useAuth()
 
   return (
     <motion.header 
@@ -27,31 +25,14 @@ const Header = () => {
           <Link href="/lectures" className="nav-link header-text">
             Lectures
           </Link>
-          {user ? (
-            <>
-              {user.email?.includes('admin') && (
-                <Link href="/admin" className="nav-link header-text">
-                  Admin
-                </Link>
-              )}
+          <>
               <Link href="/profile" className="nav-link header-text">
                 Profile
               </Link>
               <NotificationIcon />
-              <button onClick={logout} className="nav-link header-text">
-                Logout
-              </button>
-            </>
-          ) : (
-            <>
-              <Link href="/login" className="nav-link header-text">
-                Login
-              </Link>
-              <Link href="/register" className="nav-link header-text">
-                Register
-              </Link>
-            </>
-          )}
+            
+          </>
+          
           <AccessibilitySettings />
         </nav>
       </div>

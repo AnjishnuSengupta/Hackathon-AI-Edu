@@ -5,7 +5,7 @@ import { useAccessibility } from '../context/AccessibilityContext'
 import * as handpose from '@tensorflow-models/handpose'
 import '@tensorflow/tfjs-backend-webgl'
 
-const SignLanguageConverter = ({ text }: { text: string }) => {
+const SignLanguageConverter = ({ onDetectedText }: { onDetectedText: (text: string) => void }) => {
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [translating, setTranslating] = useState(false)
@@ -42,87 +42,81 @@ const SignLanguageConverter = ({ text }: { text: string }) => {
     }
   }, [translating])
 
-interface HandLandmark {
-    landmarks: number[][]
-}
+  interface HandLandmark {
+    landmarks: Array<[number, number, number]>;
+  }
 
-interface HandposeModel {
-    estimateHands: (input: HTMLVideoElement) => Promise<HandLandmark[]>
-}
+  interface HandposeModel {
+    estimateHands: (video: HTMLVideoElement) => Promise<HandLandmark[]>;
+  }
 
-const detectHands = async (model: HandposeModel): Promise<void> => {
-    if (!canvasRef.current || !videoRef.current) return
+  const detectHands = async (model: HandposeModel): Promise<void> => {
+      if (!canvasRef.current || !videoRef.current) return;
 
-    const predictions: HandLandmark[] = await model.estimateHands(videoRef.current)
-    const ctx = canvasRef.current.getContext('2d')
-    if (!ctx) return
-    ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height)
+      const predictions = await model.estimateHands(videoRef.current);
+      const ctx = canvasRef.current.getContext('2d') as CanvasRenderingContext2D;
+      ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
 
-    if (predictions.length > 0) {
+      if (predictions.length > 0) {
         predictions.forEach((prediction: HandLandmark) => {
-            const landmarks: number[][] = prediction.landmarks
+          const landmarks = prediction.landmarks;
 
-            // Draw hand skeleton
-            ctx.strokeStyle = highContrast ? 'yellow' : 'blue'
-            ctx.lineWidth = 2
+          // Draw hand skeleton
+          ctx.strokeStyle = highContrast ? 'yellow' : 'blue';
+          ctx.lineWidth = 2;
 
-            for (let i = 0; i < landmarks.length; i++) {
-                const [x, y]: number[] = landmarks[i]
-                ctx.beginPath()
-                ctx.arc(x, y, 5, 0, 2 * Math.PI)
-                ctx.fill()
+          for (let i = 0; i < landmarks.length; i++) {
+            const [x, y] = landmarks[i];
+            ctx.beginPath();
+            ctx.arc(x, y, 5, 0, 2 * Math.PI);
+            ctx.fill();
 
-                if (i > 0) {
-                    const [px, py]: number[] = landmarks[i - 1]
-                    ctx.moveTo(px, py)
-                    ctx.lineTo(x, y)
-                    ctx.stroke()
-                }
+            if (i > 0) {
+              const [px, py] = landmarks[i - 1];
+              ctx.moveTo(px, py);
+              ctx.lineTo(x, y);
+              ctx.stroke();
             }
+          }
 
-            // Detect letter based on hand pose
-            const letter: string = detectLetter(landmarks as Landmarks)
-            setDetectedLetter(letter)
-        })
-    }
+          // Detect letter based on hand pose
+          const letter = detectLetter(landmarks);
+          setDetectedLetter(letter);
+          onDetectedText(letter);
+        });
+      }
 
-    requestAnimationFrame(() => detectHands(model))
-}
+      requestAnimationFrame(() => detectHands(model));
+    };
 
-interface LandmarkCoordinate extends Array<number> {
-    0: number;  // x coordinate
-    1: number;  // y coordinate
-    2: number;  // z coordinate
-}
+  interface Landmark {
+    0: number;  // x
+    1: number;  // y
+    2: number;  // z
+  }
 
-interface Landmarks extends Array<LandmarkCoordinate> {
-    [index: number]: LandmarkCoordinate;
-}
+  const detectLetter = (landmarks: Landmark[]): string => {
+    const thumbTip = landmarks[4]
+    const indexTip = landmarks[8]
 
-const detectLetter = (landmarks: Landmarks): string => {
-    // This is a simplified example. You would need a more sophisticated algorithm
-    // to accurately detect letters based on hand landmarks.
-    const thumbTip: LandmarkCoordinate = landmarks[4]
-    const indexTip: LandmarkCoordinate = landmarks[8]
-
-    const distance: number = Math.sqrt(
-        Math.pow(thumbTip[0] - indexTip[0], 2) + Math.pow(thumbTip[1] - indexTip[1], 2)
+    const distance = Math.sqrt(
+      Math.pow(thumbTip[0] - indexTip[0], 2) + Math.pow(thumbTip[1] - indexTip[1], 2)
     )
 
     if (distance < 20) {
-        return 'A'
+      return 'A'
     } else if (distance < 40) {
-        return 'B'
+      return 'B'
     } else {
-        return 'C'
+      return 'C'
     }
-}
+  }
 
   return (
     <div className="space-y-4">
       <button 
         onClick={() => setTranslating(!translating)}
-        className={`btn ${highContrast ? 'bg-yellow-400 text-black' : 'btn-primary'}`}
+        className={`px-4 py-2 rounded ${highContrast ? 'bg-yellow-400 text-black' : 'bg-blue-500 text-white'} hover:opacity-80`}
       >
         {translating ? 'Stop Translation' : 'Start Sign Language Translation'}
       </button>
@@ -134,7 +128,7 @@ const detectLetter = (landmarks: Landmarks): string => {
       )}
 
       {translating && (
-        <div className="relative aspect-video max-w-2xl mx-auto">
+        <div className="relative aspect-video max-w-md mx-auto">
           <video
             ref={videoRef}
             className="absolute top-0 left-0 w-full h-full"
@@ -151,10 +145,6 @@ const detectLetter = (landmarks: Landmarks): string => {
           </div>
         </div>
       )}
-
-      <div className="mt-4 p-4 bg-gray-100 rounded max-h-60 overflow-y-auto">
-        <p className="text-gray-700">{text}</p>
-      </div>
     </div>
   )
 }

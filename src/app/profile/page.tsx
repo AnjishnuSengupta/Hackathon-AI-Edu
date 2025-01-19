@@ -5,14 +5,16 @@ import { useAuth } from '../../context/AuthContext'
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore'
 import { db } from '../../firebase'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 
 export default function ProfilePage() {
-  const { user, grantTemporaryAdminAccess } = useAuth()
+  const { user, logout, grantTemporaryAdminAccess } = useAuth()
   const [name, setName] = useState('')
   const [bio, setBio] = useState('')
   const [completedResources, setCompletedResources] = useState([])
   const [preferences, setPreferences] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
+  const router = useRouter()
 
   const categories = ['Math', 'Science', 'Literature', 'History', 'Technology']
 
@@ -37,37 +39,46 @@ export default function ProfilePage() {
   }
 
   interface UserProfile {
-    name: string;
-    bio: string;
-    completedResources: string[];
-    preferences: string[];
+    name: string
+    bio: string
+    completedResources: string[]
+    preferences: string[]
   }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-      e.preventDefault();
-      if (user) {
-        try {
-          const profileData: UserProfile = {
-            name,
-            bio,
-            completedResources,
-            preferences
-          };
-          await setDoc(doc(db, 'users', user.uid), profileData, { merge: true });
-          alert('Profile updated successfully');
-        } catch (error) {
-          console.error('Error updating profile:', error);
-          alert('Failed to update profile');
+    e.preventDefault()
+    if (user) {
+      try {
+        const userProfile: UserProfile = {
+          name,
+          bio,
+          completedResources,
+          preferences
         }
+        await setDoc(doc(db, 'users', user.uid), userProfile, { merge: true })
+        alert('Profile updated successfully')
+      } catch (error) {
+        console.error('Error updating profile:', error)
+        alert('Failed to update profile')
       }
-    };
+    }
+  }
 
-  const handlePreferenceChange = (category: string): void => {
+  const handlePreferenceChange = (category: string) => {
     setPreferences((prev: string[]) => 
       prev.includes(category) 
         ? prev.filter((p: string) => p !== category)
         : [...prev, category]
     )
+  }
+
+  const handleLogout = async () => {
+    try {
+      await logout()
+      router.push('/')
+    } catch (error) {
+      console.error('Failed to log out', error)
+    }
   }
 
   if (!user) {
@@ -146,12 +157,22 @@ export default function ProfilePage() {
         ></div>
       </div>
       <p className="mt-2">You've completed {completedResources.length} out of 10 resources.</p>
-      <button
-        onClick={() => grantTemporaryAdminAccess()}
-        className="mt-4 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
-      >
-        Grant Temporary Admin Access (30 minutes)
-      </button>
+      
+      <div className="mt-8 space-y-4">
+        <button
+          onClick={() => grantTemporaryAdminAccess()}
+          className="px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600"
+        >
+          Grant Temporary Admin Access (30 minutes)
+        </button>
+        
+        <button
+          onClick={handleLogout}
+          className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+        >
+          Logout
+        </button>
+      </div>
     </div>
   )
 }

@@ -3,7 +3,11 @@
 import { useState, useEffect } from 'react'
 import { useAccessibility } from '../context/AccessibilityContext'
 
-const TextToSpeech = ({ text }: { text: string }) => {
+interface TextToSpeechProps {
+  text: string;
+}
+
+const TextToSpeech = ({ text }: TextToSpeechProps) => {
   const [speaking, setSpeaking] = useState(false)
   const [supported, setSupported] = useState(true)
   const { highContrast } = useAccessibility()
@@ -35,16 +39,13 @@ const TextToSpeech = ({ text }: { text: string }) => {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="mt-4">
       <button 
         onClick={speak}
-        className={`btn ${highContrast ? 'bg-yellow-400 text-black' : 'btn-primary'}`}
+        className={`px-4 py-2 rounded ${highContrast ? 'bg-yellow-400 text-black' : 'bg-blue-500 text-white'} hover:opacity-80`}
       >
-        {speaking ? 'Stop Reading' : 'Start Reading'}
+        {speaking ? 'Stop Reading' : 'Read Aloud'}
       </button>
-      <div className="mt-4 p-4 bg-gray-100 rounded max-h-60 overflow-y-auto">
-        <p className="text-gray-700">{text}</p>
-      </div>
     </div>
   )
 }
