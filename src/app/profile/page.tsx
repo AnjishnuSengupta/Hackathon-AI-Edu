@@ -7,7 +7,7 @@ import { db } from '../../firebase'
 import Link from 'next/link'
 
 export default function ProfilePage() {
-  const { user } = useAuth()
+  const { user, grantTemporaryAdminAccess } = useAuth()
   const [name, setName] = useState('')
   const [bio, setBio] = useState('')
   const [completedResources, setCompletedResources] = useState([])
@@ -44,23 +44,23 @@ export default function ProfilePage() {
   }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (user) {
-      try {
-        const profileData: UserProfile = {
-          name,
-          bio,
-          completedResources,
-          preferences
-        };
-        await setDoc(doc(db, 'users', user.uid), profileData, { merge: true });
-        alert('Profile updated successfully');
-      } catch (error) {
-        console.error('Error updating profile:', error);
-        alert('Failed to update profile');
+      e.preventDefault();
+      if (user) {
+        try {
+          const profileData: UserProfile = {
+            name,
+            bio,
+            completedResources,
+            preferences
+          };
+          await setDoc(doc(db, 'users', user.uid), profileData, { merge: true });
+          alert('Profile updated successfully');
+        } catch (error) {
+          console.error('Error updating profile:', error);
+          alert('Failed to update profile');
+        }
       }
-    }
-  };
+    };
 
   const handlePreferenceChange = (category: string): void => {
     setPreferences((prev: string[]) => 
@@ -146,6 +146,12 @@ export default function ProfilePage() {
         ></div>
       </div>
       <p className="mt-2">You've completed {completedResources.length} out of 10 resources.</p>
+      <button
+        onClick={() => grantTemporaryAdminAccess()}
+        className="mt-4 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+      >
+        Grant Temporary Admin Access (30 minutes)
+      </button>
     </div>
   )
 }

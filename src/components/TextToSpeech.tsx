@@ -42,7 +42,7 @@ const TextToSpeech = ({ text }: { text: string }) => {
       >
         {speaking ? 'Stop Reading' : 'Start Reading'}
       </button>
-      <div className="mt-4 p-4 bg-gray-100 rounded">
+      <div className="mt-4 p-4 bg-gray-100 rounded max-h-60 overflow-y-auto">
         <p className="text-gray-700">{text}</p>
       </div>
     </div>

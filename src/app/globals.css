@@ -70,6 +70,22 @@ body {
   .card {
     padding: 1rem;
   }
+
+  /* Adjust header for mobile */
+  header .container {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  header nav {
+    margin-top: 1rem;
+    flex-wrap: wrap;
+  }
+
+  header .nav-link {
+    padding: 0.5rem 1rem;
+    margin-bottom: 0.5rem;
+  }
 }
 
 @media (min-width: 641px) and (max-width: 1024px) {

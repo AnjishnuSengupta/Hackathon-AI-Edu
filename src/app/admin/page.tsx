@@ -7,18 +7,8 @@ import { db } from '../../firebase'
 
 export default function AdminPage() {
   const { user } = useAuth()
-  interface Resource {
-    id: string;
-    title: string;
-    content: string;
-    category: string;
-    type: string;
-    createdAt?: Date;
-    updatedAt?: Date;
-  }
-
-  const [resources, setResources] = useState<Resource[]>([])
-  const [users, setUsers] = useState<any[]>([])
+  const [resources, setResources] = useState<Array<EditableResource>>([])
+  const [users, setUsers] = useState<Array<{ id: string; [key: string]: any }>>([])
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [category, setCategory] = useState('')
@@ -26,10 +16,37 @@ export default function AdminPage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState('resources')
 
+  // Added state variables for lecture management
+  interface Lecture {
+    id: string;
+    title: string;
+    category: string;
+    type: string;
+    content?: string;
+    source?: string;
+    videoId?: string;
+    url?: string;
+    transcript: string;
+    createdAt: Date;
+    updatedAt?: Date;
+  }
+  const [lectures, setLectures] = useState<Lecture[]>([])
+  const [lectureTitle, setLectureTitle] = useState('')
+  const [lectureCategory, setLectureCategory] = useState('')
+  const [lectureType, setLectureType] = useState('video')
+  const [lectureSource, setLectureSource] = useState('')
+  const [lectureVideoId, setLectureVideoId] = useState('')
+  const [lectureUrl, setLectureUrl] = useState('')
+  const [lectureContent, setLectureContent] = useState('')
+  const [lectureTranscript, setLectureTranscript] = useState('')
+  const [editingLectureId, setEditingLectureId] = useState<string | null>(null)
+
+
   useEffect(() => {
     if (user && user.email && user.email.includes('admin')) {
       fetchResources()
       fetchUsers()
+      fetchLectures()
     }
   }, [user])
 
@@ -39,7 +56,7 @@ export default function AdminPage() {
     const resourcesList = resourcesSnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
-    } as Resource))
+    })) as EditableResource[]
     setResources(resourcesList)
   }
 
@@ -53,42 +70,40 @@ export default function AdminPage() {
     setUsers(usersList)
   }
 
-  interface ResourceData {
+  interface Resource {
     title: string;
     content: string;
     category: string;
-    type: string;
+    type: 'text' | 'video';
     createdAt: Date;
     updatedAt?: Date;
   }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    if (!user?.email?.includes('admin')) {
+    if (!user?.email || !user.email.includes('admin')) {
       alert('You do not have permission to manage resources')
       return
     }
 
     try {
       if (editingId) {
-        const updateData: Partial<ResourceData> = {
+        await updateDoc(doc(db, 'resources', editingId), {
           title,
           content,
           category,
           type,
           updatedAt: new Date()
-        }
-        await updateDoc(doc(db, 'resources', editingId), updateData)
+        } as Partial<Resource>)
         setEditingId(null)
       } else {
-        const newResource: ResourceData = {
+        await addDoc(collection(db, 'resources'), {
           title,
           content,
           category,
           type,
           createdAt: new Date()
-        }
-        await addDoc(collection(db, 'resources'), newResource)
+        } as Resource)
       }
       alert(editingId ? 'Resource updated successfully' : 'Resource added successfully')
       setTitle('')
@@ -102,12 +117,25 @@ export default function AdminPage() {
     }
   }
 
-  const handleEdit = (resource: Resource) => {
+  interface EditableResource {
+    id: string;
+    title: string;
+    content: string;
+    category: string;
+    type: 'text' | 'video';
+  }
+
+  const handleEdit = (resource: EditableResource): void => {
     setTitle(resource.title)
     setContent(resource.content)
     setCategory(resource.category)
     setType(resource.type)
     setEditingId(resource.id)
+  }
+
+  interface DeleteResponse {
+    success: boolean;
+    error?: Error;
   }
 
   const handleDelete = async (id: string): Promise<void> => {
@@ -123,8 +151,9 @@ export default function AdminPage() {
     }
   }
 
-  interface DeleteUserError {
-    message: string;
+  interface DeleteUserResponse {
+    success: boolean;
+    error?: Error;
   }
 
   const handleDeleteUser = async (id: string): Promise<void> => {
@@ -140,7 +169,119 @@ export default function AdminPage() {
     }
   }
 
-  if (!user || !user.email || !user.email.includes('admin')) {
+  const fetchLectures = async () => {
+    const lecturesCollection = collection(db, 'lectures')
+    const lecturesSnapshot = await getDocs(lecturesCollection)
+    const lecturesList = lecturesSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    })) as Lecture[]
+    setLectures(lecturesList)
+  }
+
+  interface LectureData {
+    title: string;
+    category: string;
+    type: 'video' | 'text';
+    transcript: string;
+    updatedAt: Date;
+    source?: string;
+    videoId?: string;
+    url?: string;
+    content?: string;
+    createdAt?: Date;
+  }
+
+  const handleLectureSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    if (!user?.email || !user.email.includes('admin')) {
+      alert('You do not have permission to manage lectures')
+      return
+    }
+
+    try {
+      const lectureData: LectureData = {
+        title: lectureTitle,
+        category: lectureCategory,
+        type: lectureType as 'video' | 'text',
+        transcript: lectureTranscript,
+        updatedAt: new Date()
+      }
+
+      if (lectureType === 'video') {
+        lectureData.source = lectureSource
+        lectureData.videoId = lectureVideoId
+        if (lectureSource === 'custom') {
+          lectureData.url = lectureUrl
+        }
+      } else {
+        lectureData.content = lectureContent
+      }
+
+      if (editingLectureId) {
+        await updateDoc(doc(db, 'lectures', editingLectureId), lectureData as { [key: string]: any })
+      } else {
+        await addDoc(collection(db, 'lectures'), {
+          ...lectureData,
+          createdAt: new Date()
+        })
+      }
+
+      alert(editingLectureId ? 'Lecture updated successfully' : 'Lecture added successfully')
+      resetLectureForm()
+      fetchLectures()
+    } catch (error: unknown) {
+      console.error('Error managing lecture: ', error)
+      alert('Failed to manage lecture')
+    }
+  }
+
+  const handleEditLecture = (lecture: Lecture) => {
+    setLectureTitle(lecture.title)
+    setLectureCategory(lecture.category)
+    setLectureType(lecture.type)
+    setLectureTranscript(lecture.transcript)
+    if (lecture.type === 'video') {
+      setLectureSource(lecture.source || '')
+      setLectureVideoId(lecture.videoId || '')
+      setLectureUrl(lecture.url || '')
+    } else {
+      setLectureContent(lecture.content ?? '')
+    }
+    setEditingLectureId(lecture.id)
+  }
+
+  interface DeleteLectureResponse {
+    success: boolean;
+    error?: Error;
+  }
+
+  const handleDeleteLecture = async (id: string): Promise<void> => {
+    if (confirm('Are you sure you want to delete this lecture?')) {
+      try {
+        await deleteDoc(doc(db, 'lectures', id))
+        alert('Lecture deleted successfully')
+        fetchLectures()
+      } catch (error: unknown) {
+        console.error('Error deleting lecture: ', error)
+        alert('Failed to delete lecture')
+      }
+    }
+  }
+
+  const resetLectureForm = () => {
+    setLectureTitle('')
+    setLectureCategory('')
+    setLectureType('video')
+    setLectureSource('')
+    setLectureVideoId('')
+    setLectureUrl('')
+    setLectureContent('')
+    setLectureTranscript('')
+    setEditingLectureId(null)
+  }
+
+  if (!user?.email?.includes('admin')) {
     return <div>Access denied</div>
   }
 
@@ -159,6 +300,13 @@ export default function AdminPage() {
           className={`px-4 py-2 rounded ${activeTab === 'users' ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
         >
           Manage Users
+        </button>
+        {/* Added button for managing lectures */}
+        <button
+          onClick={() => setActiveTab('lectures')}
+          className={`px-4 py-2 rounded ${activeTab === 'lectures' ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
+        >
+          Manage Lectures
         </button>
       </div>
 
@@ -229,6 +377,113 @@ export default function AdminPage() {
                 <p>Completed Resources: {user.completedResources?.length || 0}</p>
                 <div className="mt-2">
                   <button onClick={() => handleDeleteUser(user.id)} className="px-3 py-1 bg-red-500 text-white rounded">Delete User</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* Added section for managing lectures */}
+      {activeTab === 'lectures' && (
+        <>
+          <h2 className="text-2xl font-bold mb-4">{editingLectureId ? 'Edit' : 'Add'} Lecture</h2>
+          <form onSubmit={handleLectureSubmit} className="space-y-4 mb-8">
+            <input
+              type="text"
+              value={lectureTitle}
+              onChange={(e) => setLectureTitle(e.target.value)}
+              placeholder="Title"
+              className="w-full p-2 border rounded"
+              required
+            />
+            <select
+              value={lectureCategory}
+              onChange={(e) => setLectureCategory(e.target.value)}
+              className="w-full p-2 border rounded"
+              required
+            >
+              <option value="">Select Category</option>
+              <option value="Math">Math</option>
+              <option value="Science">Science</option>
+              <option value="Literature">Literature</option>
+            </select>
+            <select
+              value={lectureType}
+              onChange={(e) => setLectureType(e.target.value)}
+              className="w-full p-2 border rounded"
+              required
+            >
+              <option value="video">Video</option>
+              <option value="text">Text</option>
+            </select>
+            {lectureType === 'video' && (
+              <>
+                <select
+                  value={lectureSource}
+                  onChange={(e) => setLectureSource(e.target.value)}
+                  className="w-full p-2 border rounded"
+                  required
+                >
+                  <option value="">Select Source</option>
+                  <option value="youtube">YouTube</option>
+                  <option value="khan_academy">Khan Academy</option>
+                  <option value="vimeo">Vimeo</option>
+                  <option value="custom">Custom URL</option>
+                </select>
+                {lectureSource === 'custom' ? (
+                  <input
+                    type="url"
+                    value={lectureUrl}
+                    onChange={(e) => setLectureUrl(e.target.value)}
+                    placeholder="Video URL"
+                    className="w-full p-2 border rounded"
+                    required
+                  />
+                ) : (
+                  <input
+                    type="text"
+                    value={lectureVideoId}
+                    onChange={(e) => setLectureVideoId(e.target.value)}
+                    placeholder="Video ID"
+                    className="w-full p-2 border rounded"
+                    required
+                  />
+                )}
+              </>
+            )}
+            {lectureType === 'text' && (
+              <textarea
+                value={lectureContent}
+                onChange={(e) => setLectureContent(e.target.value)}
+                placeholder="Lecture Content"
+                className="w-full p-2 border rounded"
+                rows={6}
+                required
+              />
+            )}
+            <textarea
+              value={lectureTranscript}
+              onChange={(e) => setLectureTranscript(e.target.value)}
+              placeholder="Transcript"
+              className="w-full p-2 border rounded"
+              rows={4}
+              required
+            />
+            <button type="submit" className="px-4 py-2 bg-blue-500 text-white rounded">
+              {editingLectureId ? 'Update' : 'Add'} Lecture
+            </button>
+          </form>
+
+          <h2 className="text-2xl font-bold mt-8 mb-4">Manage Lectures</h2>
+          <div className="space-y-4">
+            {lectures.map(lecture => (
+              <div key={lecture.id} className="border p-4 rounded">
+                <h3 className="text-xl font-semibold">{lecture.title}</h3>
+                <p>{lecture.category} - {lecture.type}</p>
+                <div className="mt-2">
+                  <button onClick={() => handleEditLecture(lecture)} className="mr-2 px-3 py-1 bg-yellow-500 text-white rounded">Edit</button>
+                  <button onClick={() => handleDeleteLecture(lecture.id)} className="px-3 py-1 bg-red-500 text-white rounded">Delete</button>
                 </div>
               </div>
             ))}
